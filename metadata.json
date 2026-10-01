@@ -1,0 +1,6 @@
+{
+  "name": "Subterráneo — DJ Crate Digging & Harmonic Set Architect",
+  "description": "Pesquisa musical especializada para DJs de House, Melodic Techno e Indie Dance com curadoria underground, integração ao Rekordbox, análise Camelot e DNA de subgênero.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
