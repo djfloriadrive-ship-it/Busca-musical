@@ -1,6 +1,6 @@
 {
-  "summary":  "Plano de implementação atualizado incluindo análise explícita de gênero musical, subgênero detalhado e a justificativa técnica/sonora (DNA Sonoro: timbres de sintetizador, ritmo de bateria, arranjo e dinâmica) explicando por que cada faixa se enquadra naquele subgênero específico.",
-  "updatedAt":  "2026-10-01T12:22:17.079777738Z",
+  "summary":  "Plano de implementação mestre para adoção integral das diretrizes do Manus no Subterráneo DJ Crate Digging: fluxo de referência com Deezer ID, classificação real de gêneros (MPB vs Eletrônica), regras determinísticas de Camelot e BPM (+/- 3 BPM), tipos de recomendação (faixa_afim, ponte_organica, ponte_para_pista), validação 100% no Deezer e suíte de testes A-E.",
+  "updatedAt":  "2026-10-01T14:10:25.717849251Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

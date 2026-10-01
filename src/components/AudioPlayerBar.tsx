@@ -7,8 +7,10 @@ import {
   ExternalLink,
   Disc,
   X,
-  Sparkles,
   Radio,
+  Sliders,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { DJTrack } from '../types/dj';
 import { fetchAudioPreview, synthPreviewEngine } from '../services/audioPreviewService';
@@ -30,6 +32,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
   const [volume, setVolume] = useState(0.8);
   const [isMuted, setIsMuted] = useState(false);
   const [audioSourceType, setAudioSourceType] = useState<'official' | 'synth' | 'loading'>('loading');
+  const [showDeezerWidget, setShowDeezerWidget] = useState(true);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -48,36 +51,44 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
     setAudioSourceType('loading');
     setCurrentTime(0);
 
-    // Tenta obter preview real do iTunes
-    fetchAudioPreview(currentTrack.title, currentTrack.artist).then((url) => {
-      if (!isMounted) return;
-
-      if (url && audioRef.current) {
-        audioRef.current.src = url;
-        audioRef.current.currentTime = 0;
-        audioRef.current.volume = isMuted ? 0 : volume;
-        audioRef.current
-          .play()
-          .then(() => {
-            if (isMounted) {
-              setIsPlaying(true);
-              setAudioSourceType('official');
-            }
-          })
-          .catch(() => {
-            // Em caso de bloqueio de autoplay pelo navegador
-            setIsPlaying(false);
+    const playAudioUrl = (url: string) => {
+      if (!isMounted || !audioRef.current) return;
+      audioRef.current.src = url;
+      audioRef.current.currentTime = 0;
+      audioRef.current.volume = isMuted ? 0 : volume;
+      audioRef.current
+        .play()
+        .then(() => {
+          if (isMounted) {
+            setIsPlaying(true);
             setAudioSourceType('official');
-          });
-      } else {
-        // Fallback: Grooving sintético no tom e BPM exatos
-        setAudioSourceType('synth');
-        synthPreviewEngine.playHarmonicGroove(currentTrack.bpm, currentTrack.camelotKey, () => {
-          if (isMounted) setIsPlaying(false);
+          }
+        })
+        .catch(() => {
+          setIsPlaying(false);
+          setAudioSourceType('official');
         });
-        setIsPlaying(true);
-      }
-    });
+    };
+
+    // 1. Se a faixa já possui previewUrl (do Deezer), toca diretamente
+    if (currentTrack.previewUrl) {
+      playAudioUrl(currentTrack.previewUrl);
+    } else {
+      // 2. Busca preview alternativo do iTunes / Apple
+      fetchAudioPreview(currentTrack.title, currentTrack.artist).then((url) => {
+        if (!isMounted) return;
+        if (url) {
+          playAudioUrl(url);
+        } else {
+          // 3. Fallback: Sintetizador harmônico analógico
+          setAudioSourceType('synth');
+          synthPreviewEngine.playHarmonicGroove(currentTrack.bpm, currentTrack.camelotKey, () => {
+            if (isMounted) setIsPlaying(false);
+          });
+          setIsPlaying(true);
+        }
+      });
+    }
 
     return () => {
       isMounted = false;
@@ -111,7 +122,6 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
     }
   };
 
-  // Atualização de tempo do áudio HTML5
   const handleTimeUpdate = () => {
     if (audioRef.current) {
       setCurrentTime(audioRef.current.currentTime);
@@ -159,31 +169,84 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#1e2638] bg-[#0b0e15]/95 backdrop-blur-lg px-4 py-2.5 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
-      {/* Elemento de Áudio Oculto */}
       <audio
         ref={audioRef}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
       />
 
+      {/* Widget Oficial do Deezer Incorporado (Permite prévias mais longas, waveform e player nativo) */}
+      {showDeezerWidget && currentTrack.deezerId && (
+        <div className="mx-auto max-w-7xl pb-2">
+          <div className="flex items-center justify-between pb-1 text-[11px] text-slate-400 font-mono">
+            <span className="flex items-center gap-1.5 text-purple-400 font-bold">
+              <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse" />
+              Widget Oficial do Deezer — Prévia Completa com Waveform & Navegação
+            </span>
+            <button
+              onClick={() => setShowDeezerWidget(false)}
+              className="text-slate-500 hover:text-slate-300 flex items-center gap-0.5 cursor-pointer"
+            >
+              <span>Minimizar Widget</span>
+              <ChevronDown className="h-3 w-3" />
+            </button>
+          </div>
+          <iframe
+            title={`Deezer Player - ${currentTrack.title}`}
+            src={`https://widget.deezer.com/widget/dark/track/${currentTrack.deezerId}`}
+            width="100%"
+            height="94"
+            frameBorder="0"
+            allow="encrypted-media; clipboard-write"
+            className="rounded-lg border border-[#232c40] bg-[#121622] shadow-md"
+          />
+        </div>
+      )}
+
       <div className="mx-auto flex max-w-7xl flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Info da Faixa Ativa */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#161c27] border border-[#232c40] text-amber-400">
-            <Disc className={`h-5 w-5 ${isPlaying ? 'animate-[spin_4s_linear_infinite]' : ''}`} />
-            {audioSourceType === 'synth' && (
-              <span
-                className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-cyan-500 text-[8px] font-bold text-slate-950"
-                title="Groove harmônico analógico sintetizado (faixa exclusiva/white label)"
-              >
-                <Radio className="h-2 w-2" />
-              </span>
-            )}
-          </div>
+          {/* Capa oficial do Álbum ou Ícone de Vinil */}
+          {currentTrack.albumCoverUrl ? (
+            <div className="relative h-11 w-11 shrink-0 rounded-md overflow-hidden border border-[#232c40] bg-[#161c27] shadow-sm">
+              <img
+                src={currentTrack.albumCoverUrl}
+                alt={currentTrack.title}
+                className={`h-full w-full object-cover ${isPlaying ? 'brightness-105' : 'brightness-90'}`}
+              />
+              {isPlaying && (
+                <span className="absolute bottom-1 right-1 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#161c27] border border-[#232c40] text-amber-400">
+              <Disc className={`h-5 w-5 ${isPlaying ? 'animate-[spin_4s_linear_infinite]' : ''}`} />
+              {audioSourceType === 'synth' && (
+                <span
+                  className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-cyan-500 text-[8px] font-bold text-slate-950"
+                  title="Groove harmônico analógico sintetizado"
+                >
+                  <Radio className="h-2 w-2" />
+                </span>
+              )}
+            </div>
+          )}
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h4 className="truncate text-sm font-semibold text-slate-100">{currentTrack.title}</h4>
+              {currentTrack.isExtendedMix ? (
+                <span className="font-mono text-[9px] text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1 py-0.2 rounded shrink-0">
+                  Extended
+                </span>
+              ) : (
+                <span className="font-mono text-[9px] text-slate-400 bg-slate-800/40 border border-slate-700/40 px-1 py-0.2 rounded shrink-0">
+                  Original
+                </span>
+              )}
               <span className="font-mono text-xs font-bold text-amber-400 border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.2 rounded">
                 {currentTrack.camelotKey}
               </span>
@@ -202,7 +265,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
           </div>
         </div>
 
-        {/* Controles de Reprodução e Scrubber */}
+        {/* Controles de Reprodução e Scrubber Rápido */}
         <div className="flex flex-col items-center gap-1 flex-1 max-w-md w-full">
           <div className="flex items-center gap-3">
             <button
@@ -216,8 +279,24 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
             <span className="text-[10px] font-mono text-slate-400">
               {audioSourceType === 'synth'
                 ? 'Sintetizador Harmônico (BPM & Tom Exatos)'
-                : `${Math.floor(currentTime)}s / ${Math.floor(duration)}s (Preview 30s)`}
+                : `${Math.floor(currentTime)}s / ${Math.floor(duration)}s (Áudio Direto)`}
             </span>
+
+            {/* Botão de Alternar Widget do Deezer */}
+            {currentTrack.deezerId && (
+              <button
+                onClick={() => setShowDeezerWidget(!showDeezerWidget)}
+                className={`flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-mono transition-colors cursor-pointer ${
+                  showDeezerWidget
+                    ? 'border-purple-500/50 bg-purple-500/20 text-purple-300'
+                    : 'border-[#29354d] bg-[#141a27] text-slate-400 hover:text-purple-300'
+                }`}
+                title="Exibir ou ocultar o player oficial do Deezer"
+              >
+                <span>{showDeezerWidget ? 'Ocultar Widget' : 'Widget Deezer'}</span>
+                {showDeezerWidget ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+              </button>
+            )}
           </div>
 
           {audioSourceType === 'official' && (
@@ -234,8 +313,8 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
           )}
         </div>
 
-        {/* Volume & Links Rápidos */}
-        <div className="flex items-center gap-4 shrink-0 justify-between sm:justify-end">
+        {/* Volume & Links Oficiais */}
+        <div className="flex items-center gap-3 shrink-0 justify-between sm:justify-end">
           {/* Volume */}
           <div className="hidden md:flex items-center gap-1.5">
             <button
@@ -256,7 +335,30 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
           </div>
 
           {/* Links Rápidos */}
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5 text-xs">
+            {currentTrack.deezerLink ? (
+              <a
+                href={currentTrack.deezerLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded bg-[#171d2b] border border-purple-500/30 px-2 py-1 text-[11px] text-purple-300 hover:bg-purple-500/15 transition-colors flex items-center gap-1 font-semibold"
+                title="Abrir no Deezer"
+              >
+                <span>Deezer</span>
+                <ExternalLink className="h-2.5 w-2.5" />
+              </a>
+            ) : (
+              <a
+                href={`https://www.deezer.com/search/${encodeURIComponent(currentTrack.artist + ' ' + currentTrack.title)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded bg-[#171d2b] border border-[#273248] px-2 py-1 text-[11px] text-purple-400 hover:bg-purple-500/10 transition-colors flex items-center gap-1"
+              >
+                <span>Deezer</span>
+                <ExternalLink className="h-2.5 w-2.5" />
+              </a>
+            )}
+
             <a
               href={currentTrack.beatportSearchUrl}
               target="_blank"
@@ -278,7 +380,6 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
             </a>
           </div>
 
-          {/* Fechar Player */}
           <button
             onClick={onClose}
             className="rounded p-1 text-slate-500 hover:text-slate-300 hover:bg-[#161c28] transition-colors"

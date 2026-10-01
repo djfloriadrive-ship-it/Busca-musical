@@ -63,18 +63,40 @@ export const TrackCard: React.FC<TrackCardProps> = ({
             </span>
           )}
 
-          {/* Botão Play / Preview */}
-          <button
-            onClick={() => onPlayToggle && onPlayToggle(track)}
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md border transition-all cursor-pointer ${
-              isPlaying
-                ? 'bg-amber-500 border-amber-400 text-slate-950 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
-                : 'bg-[#151b27] border-[#222b3e] text-slate-300 hover:text-white hover:bg-[#1e2738]'
-            }`}
-            title={isPlaying ? 'Pausar preview' : 'Tocar preview de 30s'}
-          >
-            {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current ml-0.5" />}
-          </button>
+          {/* Capa do Álbum oficial do Deezer ou Botão Play com fallback */}
+          {track.albumCoverUrl ? (
+            <div className="relative h-10 w-10 shrink-0 rounded-md overflow-hidden border border-[#232c40] group/cover shadow-sm bg-[#121622]">
+              <img
+                src={track.albumCoverUrl}
+                alt={`${track.artist} - ${track.title}`}
+                className="h-full w-full object-cover transition-transform group-hover/cover:scale-105"
+                loading="lazy"
+              />
+              <button
+                onClick={() => onPlayToggle && onPlayToggle(track)}
+                className={`absolute inset-0 flex items-center justify-center transition-all cursor-pointer ${
+                  isPlaying
+                    ? 'bg-amber-500/90 text-slate-950 shadow-inner'
+                    : 'bg-black/45 text-white opacity-0 group-hover/cover:opacity-100 backdrop-blur-[1px]'
+                }`}
+                title={isPlaying ? 'Pausar preview' : 'Tocar preview'}
+              >
+                {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current ml-0.5" />}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => onPlayToggle && onPlayToggle(track)}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition-all cursor-pointer ${
+                isPlaying
+                  ? 'bg-amber-500 border-amber-400 text-slate-950 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
+                  : 'bg-[#151b27] border-[#222b3e] text-slate-300 hover:text-white hover:bg-[#1e2738]'
+              }`}
+              title={isPlaying ? 'Pausar preview' : 'Tocar preview de 30s'}
+            >
+              {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current ml-0.5" />}
+            </button>
+          )}
 
           {/* Detalhes de Nome, Artista e Gravadora */}
           <div className="min-w-0 flex-1">
@@ -82,6 +104,27 @@ export const TrackCard: React.FC<TrackCardProps> = ({
               <h4 className="truncate text-sm font-semibold text-slate-100 group-hover:text-amber-300 transition-colors">
                 {track.title}
               </h4>
+              {track.recommendationKind === 'ponte_organica' || track.isOrganicBridge ? (
+                <span className="font-mono text-[10px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded shrink-0 font-medium">
+                  Ponte Orgânica
+                </span>
+              ) : track.recommendationKind === 'ponte_para_pista' ? (
+                <span className="font-mono text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded shrink-0 font-medium">
+                  Ponte para Pista
+                </span>
+              ) : track.recommendationKind === 'faixa_afim' ? (
+                <span className="font-mono text-[10px] text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 px-1.5 py-0.5 rounded shrink-0 font-medium">
+                  Faixa Afim
+                </span>
+              ) : track.isExtendedMix ? (
+                <span className="font-mono text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded shrink-0 font-medium">
+                  Extended Mix
+                </span>
+              ) : (
+                <span className="font-mono text-[10px] text-slate-400 bg-slate-800/40 border border-slate-700/40 px-1.5 py-0.5 rounded shrink-0">
+                  Original Mix
+                </span>
+              )}
             </div>
 
             {/* Metadados sem cápsulas artificiais (Zero-Pill Discipline) */}
@@ -110,10 +153,22 @@ export const TrackCard: React.FC<TrackCardProps> = ({
             <span className="text-[10px] font-normal opacity-80">({track.musicalKey})</span>
           </div>
 
-          {/* BPM */}
-          <div className="flex items-center gap-1 rounded border border-[#222b3e] bg-[#121622] px-2 py-1 font-mono text-xs text-slate-300">
+          {/* BPM com Delta Determinístico */}
+          <div className="flex items-center gap-1.5 rounded border border-[#222b3e] bg-[#121622] px-2 py-1 font-mono text-xs text-slate-300">
             <span className="font-semibold text-slate-200">{track.bpm.toFixed(1)}</span>
             <span className="text-[10px] text-slate-500">BPM</span>
+            {track.bpmDelta !== undefined && (
+              <span
+                className={`text-[10px] font-mono px-1 rounded ${
+                  Math.abs(track.bpmDelta) <= 3
+                    ? 'text-emerald-400 bg-emerald-500/10'
+                    : 'text-rose-400 bg-rose-500/10'
+                }`}
+                title={`Variação em relação à referência: ${track.bpmDelta > 0 ? `+${track.bpmDelta}` : track.bpmDelta} BPM`}
+              >
+                {track.bpmDelta > 0 ? `+${track.bpmDelta}` : track.bpmDelta}
+              </span>
+            )}
           </div>
 
           {/* Medidor de Energia VU (1-10) */}
@@ -222,7 +277,12 @@ export const TrackCard: React.FC<TrackCardProps> = ({
               <Info className="h-3.5 w-3.5" />
               <span>DNA Sonoro & Justificativa Técnica de Subgênero:</span>
             </div>
-            <p className="text-slate-300 font-normal">{track.subgenreReason}</p>
+            {track.compatibilityReason && (
+              <div className="mt-2 pt-2 border-t border-[#182030] text-[11px] text-emerald-400 font-mono flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
+                <span><strong>Compatibilidade Confirmada:</strong> {track.compatibilityReason}</span>
+              </div>
+            )}
             {track.transitionNotes && (
               <div className="mt-2 pt-2 border-t border-[#182030] text-[11px] text-cyan-300/90">
                 <span className="font-semibold">Dica de Mixagem:</span> {track.transitionNotes}
@@ -260,6 +320,29 @@ export const TrackCard: React.FC<TrackCardProps> = ({
             <span>Spotify</span>
             <ExternalLink className="h-2.5 w-2.5" />
           </a>
+
+          {track.deezerLink ? (
+            <a
+              href={track.deezerLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-purple-400 hover:text-purple-300 font-semibold transition-colors"
+              title="Abrir no Deezer (versão Extended se disponível)"
+            >
+              <span>Deezer</span>
+              <ExternalLink className="h-2.5 w-2.5" />
+            </a>
+          ) : (
+            <a
+              href={`https://www.deezer.com/search/${encodeURIComponent(track.artist + ' ' + track.title)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-slate-400 hover:text-purple-400 transition-colors"
+            >
+              <span>Deezer</span>
+              <ExternalLink className="h-2.5 w-2.5" />
+            </a>
+          )}
 
           <a
             href={track.bandcampSearchUrl}
